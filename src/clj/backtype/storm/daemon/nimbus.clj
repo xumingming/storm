@@ -390,6 +390,8 @@
         storm-conf (read-storm-conf conf storm-id)
         topology (read-storm-topology conf storm-id)
         task->component (storm-task-info topology storm-conf)]
+    (log-message "MM: topology: " topology)
+    (log-message "MM: storm-conf: " storm-conf)
     (->> (storm-task-info topology storm-conf)
          reverse-map
          (map-val sort)

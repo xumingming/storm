@@ -1,0 +1,26 @@
+########### These MUST be filled in for a storm configuration
+storm.zookeeper.servers:
+    - "localhost"
+    - "localhost"
+ 
+nimbus.host: "localhost"
+
+worker.childopts: "-Xmx256m"
+nimbus.childopts: "-Xmx256m"
+#storm.scheduler: "storm.DemoScheduler"
+supervisor.childopts: "-Xmx256m"
+supervisor.scheduler.meta:
+  name: "special-supervisor"
+# 
+# 
+# ##### These may optionally be filled in:
+#    
+## List of custom serializations
+# topology.kryo.register:
+#     - org.mycompany.MyType
+#     - org.mycompany.MyType2: org.mycompany.MyType2Serializer
+#
+## Locations of the drpc servers
+# drpc.servers:
+#     - "server1"
+#     - "server2"

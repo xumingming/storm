@@ -1,5 +1,6 @@
 (ns backtype.storm.daemon.worker
   (:use [backtype.storm.daemon common])
+  (:use [backtype.storm.starter :only [cal-storm-deps mk-remote-user-classloader mk-local-user-classloader]])
   (:use [backtype.storm bootstrap])
   (:require [backtype.storm.daemon [executor :as executor]])
   (:import [java.util.concurrent Executors])
@@ -151,7 +152,16 @@
                                (mapcat (fn [[e queue]] (for [t (executor-id->tasks e)] [t queue])))
                                (into {}))
 
-        topology (read-supervisor-topology conf storm-id)]
+        topology (read-supervisor-topology conf storm-id)
+        server-classloader (.getContextClassLoader (Thread/currentThread))
+        uberjar-path (System/getProperty "uberjar.path")
+        _ (log-message "MM: uberjar-path: " uberjar-path)
+        _ (log-message "MM: classpath: " (current-classpath))
+        _ (log-message "MM: conf:" conf)
+        _ (log-message "MM: storm.deps" (cal-storm-deps))
+        user-classloader (if (= (conf STORM-CLUSTER-MODE) "local")
+                           (mk-local-user-classloader server-classloader)
+                           (mk-remote-user-classloader server-classloader))]
     (recursive-map
       :conf conf
       :mq-context (if mq-context
@@ -195,6 +205,8 @@
       :user-shared-resources (mk-user-resources <>)
       :transfer-local-fn (mk-transfer-local-fn <>)
       :transfer-fn (mk-transfer-fn <>)
+      :user-classloader user-classloader
+      :server-classloader server-classloader
       )))
 
 (defn- endpoint->string [[node port]]

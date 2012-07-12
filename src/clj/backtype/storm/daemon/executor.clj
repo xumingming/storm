@@ -1,6 +1,7 @@
 (ns backtype.storm.daemon.executor
   (:use [backtype.storm.daemon common])
   (:use [backtype.storm bootstrap])
+  (:import [backtype.storm.utils Utils])
   (:import [backtype.storm.hooks ITaskHook])
   (:import [backtype.storm.tuple Tuple])
   (:import [backtype.storm.hooks.info SpoutAckInfo SpoutFailInfo
@@ -154,6 +155,9 @@
         batch-transfer->worker (disruptor/disruptor-queue
                                   (storm-conf TOPOLOGY-EXECUTOR-SEND-BUFFER-SIZE)
                                   :claim-strategy :single-threaded)
+        _ (log-message "MM: KryoTupleDeserializer: " (-> KryoTupleDeserializer .getClassLoader))
+        _ (log-message "MM: contextclassloader: " (.getContextClassLoader (Thread/currentThread)))
+        _ (log-message "MM: parent-contextclassloader: " (.getParent (.getContextClassLoader (Thread/currentThread))))
         ]
     (recursive-map
      :worker worker
@@ -182,6 +186,8 @@
                              ((:suicide-fn <>)))
      :deserializer (KryoTupleDeserializer. storm-conf worker-context)
      :sampler (mk-stats-sampler storm-conf)
+     :user-classloader (:user-classloader worker)
+     :server-classloader (:server-classloader worker)
      ;; TODO: add in the executor-specific stuff in a :specific... or make a spout-data, bolt-data function?
      )))
 
@@ -478,6 +484,8 @@
                               (.setSampleStartTime tuple (System/currentTimeMillis)))
                             (.execute bolt-obj tuple)))]
     (log-message "Preparing bolt " component-id ":" (keys task-datas))
+    (log-message "MM: IBolt classloader: " (-> IBolt .getClassLoader))
+    (log-message "MM: context classloader:" (.getContextClassLoader (Thread/currentThread)) )
     (doseq [[task-id task-data] task-datas
             :let [^IBolt bolt-obj (:object task-data)
                   tasks-fn (:tasks-fn task-data)
@@ -503,6 +511,7 @@
                                                              stream
                                                              (MessageId/makeId anchors-to-ids)))))
                                 (or out-tasks [])))]]
+      (log-message "MM: bolt-obj classloader: " (-> bolt-obj .getClass .getClassLoader))
       (.prepare bolt-obj
                 storm-conf
                 user-context

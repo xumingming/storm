@@ -393,7 +393,7 @@
           stormroot (supervisor-stormdist-root conf storm-id)
           stormjar (supervisor-stormjar-path stormroot)
           storm-conf (read-supervisor-storm-conf conf storm-id)
-          classpath (add-to-classpath (current-classpath) [stormjar])
+          classpath (current-classpath)
           childopts (.replaceAll (str (conf WORKER-CHILDOPTS) " " (storm-conf TOPOLOGY-WORKER-CHILDOPTS))
                                  "%ID%"
                                  (str port))
@@ -403,6 +403,7 @@
                        " -Dlogfile.name=" logfilename
                        " -Dstorm.home=" (System/getProperty "storm.home")
                        " -Dlog4j.configuration=storm.log.properties"
+                       " -Duberjar.path=" stormjar
                        " -cp " classpath " backtype.storm.daemon.worker "
                        (java.net.URLEncoder/encode storm-id) " " (:supervisor-id supervisor)
                        " " port " " worker-id)]
@@ -420,7 +421,9 @@
 
 (defmethod download-storm-code
     :local [conf storm-id master-code-dir]
-  (let [stormroot (supervisor-stormdist-root conf storm-id)]
+    (let [stormroot (supervisor-stormdist-root conf storm-id)]
+      (log-message "MM: master-code-dir: " master-code-dir)
+      (log-message "MM: stormroot: " stormroot)
       (FileUtils/copyDirectory (File. master-code-dir) (File. stormroot))
       (let [classloader (.getContextClassLoader (Thread/currentThread))
             resources-jar (resources-jar)

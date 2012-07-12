@@ -27,7 +27,8 @@
                       (log-message "Event manager interrupted"))
                     (catch Throwable t
                       (log-error t "Error when processing event")
-                      (halt-process! 20 "Error when processing an event"))
+                      ;;(halt-process! 20 "Error when processing an event")
+                      )
                       )))]
     (.setDaemon runner daemon?)
     (.start runner)

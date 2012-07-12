@@ -14,7 +14,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -51,7 +50,7 @@ public class Utils {
     public static Object deserialize(byte[] serialized) {
         try {
             ByteArrayInputStream bis = new ByteArrayInputStream(serialized);
-            ObjectInputStream ois = new ObjectInputStream(bis);
+            StormObjectInputStream ois = new StormObjectInputStream(bis);
             Object ret = ois.readObject();
             ois.close();
             return ret;
@@ -78,7 +77,7 @@ public class Utils {
         try {
             Time.sleep(millis);
         } catch(InterruptedException e) {
-            throw new RuntimeException(e);
+            //throw new RuntimeException(e);
         }
     }
     

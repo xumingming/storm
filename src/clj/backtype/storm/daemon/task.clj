@@ -1,8 +1,11 @@
 (ns backtype.storm.daemon.task
   (:use [backtype.storm.daemon common])
   (:use [backtype.storm bootstrap])
+  (:use [backtype.storm wrapper])
+  (:import [backtype.storm StormClassLoader])
   (:import [backtype.storm.hooks ITaskHook])
   (:import [backtype.storm.tuple Tuple])
+  (:import [backtype.storm.wrapper SpoutClassLoaderWrapper BoltClassLoaderWrapper])
   (:import [backtype.storm.generated SpoutSpec Bolt StateSpoutSpec])
   (:import [backtype.storm.hooks.info SpoutAckInfo SpoutFailInfo
               EmitInfo BoltFailInfo BoltAckInfo])
@@ -44,23 +47,39 @@
     (:topology worker))
    tid))
 
-(defn- get-task-object [^TopologyContext topology component-id]
+(defn load-object [object-type ^ClassLoader server-classloader ^ClassLoader user-classloader classname args]
+  (let [args-classes (map class args)
+        args-classes-arr (into-array Class args-classes)
+        clazz (.loadClass user-classloader classname)
+        constructor (.getConstructor clazz args-classes-arr)
+        obj (.newInstance constructor args)
+        wrapper (if (= object-type :spout)
+                  (SpoutClassLoaderWrapper. obj server-classloader user-classloader)
+                  (BoltClassLoaderWrapper. obj server-classloader user-classloader))]
+    wrapper))
+
+(defn- get-task-object [^TopologyContext topology component-id object-type server-classloader user-classloader]
   (let [spouts (.get_spouts topology)
         bolts (.get_bolts topology)
         state-spouts (.get_state_spouts topology)
+        _ (.setContextClassLoader (Thread/currentThread) user-classloader)
         obj (Utils/getSetComponentObject
              (cond
               (contains? spouts component-id) (.get_spout_object ^SpoutSpec (get spouts component-id))
               (contains? bolts component-id) (.get_bolt_object ^Bolt (get bolts component-id))
               (contains? state-spouts component-id) (.get_state_spout_object ^StateSpoutSpec (get state-spouts component-id))
               true (throw-runtime "Could not find " component-id " in " topology)))
+        _ (.setContextClassLoader (Thread/currentThread) server-classloader)
         obj (if (instance? ShellComponent obj)
               (if (contains? spouts component-id)
                 (ShellSpout. obj)
                 (ShellBolt. obj))
               obj )
         obj (if (instance? JavaObject obj)
-              (thrift/instantiate-java-object obj)
+              (let [classname (.get_full_class_name obj)
+                    args (map (memfn getFieldValue) (.get_args_list obj))
+                    obj (load-object object-type server-classloader user-classloader classname args)]
+                obj)
               obj )]
     obj
     ))
@@ -146,7 +165,8 @@
     :system-context (system-topology-context (:worker executor-data) executor-data task-id)
     :user-context (user-topology-context (:worker executor-data) executor-data task-id)
     :tasks-fn (mk-tasks-fn <>)
-    :object (get-task-object (.getRawTopology ^TopologyContext (:system-context <>)) (:component-id executor-data))
+    :object (get-task-object (.getRawTopology ^TopologyContext (:system-context <>)) (:component-id executor-data)
+                             (:type executor-data) (:server-classloader executor-data) (:user-classloader executor-data))
     ))
 
 

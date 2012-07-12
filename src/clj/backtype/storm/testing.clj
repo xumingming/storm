@@ -26,7 +26,8 @@
   (:require [backtype.storm [zookeeper :as zk]])
   (:require [backtype.storm.messaging.loader :as msg-loader])
   (:require [backtype.storm.daemon.acker :as acker])
-  (:use [backtype.storm cluster util thrift config log]))
+  (:use [backtype.storm cluster util thrift config log])
+  (:use [backtype.storm.starter :only [mk-local-server-classloader]]))
 
 (defn feeder-spout [fields]
   (FeederSpout. (Fields. fields)))
@@ -97,7 +98,9 @@
 ;; can customize the supervisors (except for ports) by passing in map for :supervisors parameter
 ;; if need to customize amt of ports more, can use add-supervisor calls afterwards
 (defnk mk-local-storm-cluster [:supervisors 2 :ports-per-supervisor 3 :daemon-conf {}]
-  (let [zk-tmp (local-temp-path)
+  (let [server-classloader (mk-local-server-classloader)
+        _ (.setContextClassLoader (Thread/currentThread) server-classloader)
+        zk-tmp (local-temp-path)
         [zk-port zk-handle] (zk/mk-inprocess-zookeeper zk-tmp)
         daemon-conf (merge (read-storm-config)
                            {TOPOLOGY-SKIP-MISSING-KRYO-REGISTRATIONS true

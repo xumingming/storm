@@ -701,6 +701,7 @@
   (java.net.URLEncoder/encode s))
 
 (defn join-maps [& maps]
+  (log-message "maps: " maps)
   (let [all-keys (apply set/union (for [m maps] (-> m keys set)))]
     (into {}
       (for [k all-keys]
